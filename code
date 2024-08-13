@@ -1,0 +1,64 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import LabelEncoder
+
+np.random.seed(42)
+
+locations = ['Colony A', 'Mall B', 'Industrial Area', 'School C', 'Park D', 'Hospital E', 'Warehouse F', 'Office G']
+fire_types = ['Residential', 'Commercial', 'Industrial', 'Educational', 'Public', 'Healthcare', 'Storage', 'Corporate']
+water_sources = ['Lake', 'River', 'Water Tank', 'Pond', 'Underground Tank', 'N/A']
+stations = ['Station 1', 'Station 2', 'Station 3']
+
+n_samples = 1000
+data = {
+    'Fire_ID': np.arange(1, n_samples + 1),
+    'Location': np.random.choice(locations, n_samples),
+    'Fire_Type': np.random.choice(fire_types, n_samples),
+    'Paths_Available': np.random.randint(1, 6, n_samples),
+    'Water_Source_Availability': np.random.choice(['Yes', 'No'], n_samples),
+    'Water_Source_Type': np.random.choice(water_sources, n_samples),
+    'Response_Time (mins)': np.random.randint(5, 20, n_samples),
+    'Nearest_Fire_Station': np.random.choice(stations, n_samples)
+}
+
+df = pd.DataFrame(data)
+
+df.loc[df['Water_Source_Availability'] == 'No', 'Water_Source_Type'] = 'N/A'
+
+label_encoder = LabelEncoder()
+df['Location_Encoded'] = label_encoder.fit_transform(df['Location'])
+
+X = df[['Location_Encoded']]
+y = df[['Paths_Available', 'Water_Source_Availability', 'Water_Source_Type']]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+model_paths = RandomForestClassifier(n_estimators=100, random_state=42)
+model_water_avail = RandomForestClassifier(n_estimators=100, random_state=42)
+model_water_type = RandomForestClassifier(n_estimators=100, random_state=42)
+
+model_paths.fit(X_train, y_train['Paths_Available'])
+model_water_avail.fit(X_train, y_train['Water_Source_Availability'])
+model_water_type.fit(X_train, y_train['Water_Source_Type'])
+
+def predict_based_on_location(location):
+    location_encoded = label_encoder.transform([location])
+    predicted_paths = model_paths.predict([location_encoded])
+    predicted_water_avail = model_water_avail.predict([location_encoded])
+    predicted_water_type = model_water_type.predict([location_encoded])
+    
+    return {
+        "Paths_Available": predicted_paths[0],
+        "Water_Source_Availability": predicted_water_avail[0],
+        "Water_Source_Type": predicted_water_type[0]
+    }
+
+user_input_location = input("Enter the Location: ").strip()
+
+prediction = predict_based_on_location(user_input_location)
+print(f"Predicted Number of Paths Available: {prediction['Paths_Available']}")
+print(f"Predicted Water Source Availability: {prediction['Water_Source_Availability']}")
+print(f"Predicted Water Source Type: {prediction['Water_Source_Type']}")
