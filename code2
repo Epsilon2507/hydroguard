@@ -1,0 +1,48 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+
+np.random.seed(42)
+
+locations = ['Colony A', 'Mall B', 'Industrial Area', 'School C', 'Park D', 'Hospital E', 'Warehouse F', 'Office G']
+fire_types = ['Residential', 'Commercial', 'Industrial', 'Educational', 'Public', 'Healthcare', 'Storage', 'Corporate']
+water_sources = ['Lake', 'River', 'Water Tank', 'Pond', 'Underground Tank']
+stations = ['Station 1', 'Station 2', 'Station 3']
+
+n_samples = 1000
+data = {
+    'Fire_ID': np.arange(1, n_samples + 1),
+    'Location': np.random.choice(locations, n_samples),
+    'Fire_Type': np.random.choice(fire_types, n_samples),
+    'Paths_Available': np.random.randint(1, 6, n_samples),
+    'Nearest_Water_Source': np.random.choice(water_sources, n_samples),
+    'Distance_to_Water_Source': np.random.randint(1, 15, n_samples),  
+    'Response_Time (mins)': np.random.randint(5, 20, n_samples),
+    'Nearest_Fire_Station': np.random.choice(stations, n_samples)
+}
+
+df = pd.DataFrame(data)
+
+label_encoder = LabelEncoder()
+df['Location_Encoded'] = label_encoder.fit_transform(df['Location'])
+
+X = df[['Location_Encoded']]
+y = df['Nearest_Water_Source']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+model_water_source = RandomForestClassifier(n_estimators=100, random_state=42)
+model_water_source.fit(X_train, y_train)
+
+def predict_nearest_water_source(location):
+    location_encoded = label_encoder.transform([location])
+    predicted_water_source = model_water_source.predict([location_encoded])
+    
+    return predicted_water_source[0]
+
+user_input_location = input("Enter the Location: ").strip()
+
+predicted_water_source = predict_nearest_water_source(user_input_location)
+print(f"Predicted Nearest Water Source: {predicted_water_source}")
