@@ -1,0 +1,116 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+# Define the environment as a grid: 0 = empty space, 1 = obstacle
+grid = np.array([
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 0, 1, 0],
+    [0, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0]
+])
+
+# Define the start and goal points
+start = (0, 0)
+goal = (4, 4)
+
+# Define the possible actions in the grid environment
+actions = [(0, -1), (0, 1), (-1, 0), (1, 0)]  # Left, Right, Up, Down
+
+# Parameters for Q-learning
+learning_rate = 0.1
+discount_factor = 0.9
+epsilon = 0.9  # Exploration rate
+episodes = 1000
+
+# Initialize the Q-table (a 3D array: states x actions)
+q_table = np.zeros((grid.shape[0], grid.shape[1], len(actions)))
+
+# Function to choose an action based on epsilon-greedy strategy
+def choose_action(state):
+    if np.random.uniform(0, 1) < epsilon:
+        return np.argmax(q_table[state[0], state[1], :])  # Exploit learned values
+    else:
+        return np.random.choice(len(actions))  # Explore random action
+
+# Function to get the reward for moving to a new state
+def get_reward(state):
+    if state == goal:
+        return 100  # Reward for reaching the goal
+    else:
+        return -1  # Penalty for each step taken
+
+# Training the agent using Q-learning
+for episode in range(episodes):
+    state = start  # Initialize starting point
+    done = False
+
+    while not done:
+        # Choose an action based on the current state
+        action_index = choose_action(state)
+        action = actions[action_index]
+
+        # Calculate the next state after taking the action
+        next_state = (state[0] + action[0], state[1] + action[1])
+
+        # Check if the next state is valid (within bounds and not an obstacle)
+        if 0 <= next_state[0] < grid.shape[0] and 0 <= next_state[1] < grid.shape[1] and grid[next_state] == 0:
+            reward = get_reward(next_state)
+
+            # Update Q-value using the Q-learning formula
+            predict = q_table[state[0], state[1], action_index]
+            target = reward + discount_factor * np.max(q_table[next_state[0], next_state[1], :])
+            q_table[state[0], state[1], action_index] += learning_rate * (target - predict)
+
+            # Transition to the next state
+            state = next_state
+
+            # If the goal is reached, finish the episode
+            if state == goal:
+                done = True
+        else:
+            # If the next state is invalid (obstacle or out of bounds), apply penalty and stay in place
+            reward = -10
+            q_table[state[0], state[1], action_index] += learning_rate * (reward - q_table[state[0], state[1], action_index])
+
+print("Training complete!")
+
+# Function to find the best path after training
+def find_best_path():
+    path = []
+    state = start
+    path.append(state)
+
+    while state != goal:
+        action_index = np.argmax(q_table[state[0], state[1], :])
+        action = actions[action_index]
+        next_state = (state[0] + action[0], state[1] + action[1])
+
+        if 0 <= next_state[0] < grid.shape[0] and 0 <= next_state[1] < grid.shape[1] and grid[next_state] == 0:
+            path.append(next_state)
+            state = next_state
+        else:
+            break  # Break if stuck or unable to move further
+
+    return path
+
+# Find and print the best path
+best_path = find_best_path()
+print("Best path found by Q-learning:", best_path)
+
+# Visualization of the grid and the best path
+def visualize_path(grid, path):
+    grid_copy = np.copy(grid)
+    for step in path:
+        grid_copy[step] = 2  # Mark the path with a 2
+    grid_copy[start] = 3  # Mark the start point with a 3
+    grid_copy[goal] = 4  # Mark the goal point with a 4
+
+    plt.imshow(grid_copy, cmap='cool')
+    plt.title('Best Path Found by Q-learning')
+    plt.colorbar()
+    plt.show()
+
+# Visualize the best path
+visualize_path(grid, best_path)
