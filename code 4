@@ -1,0 +1,108 @@
+# Install required libraries
+!pip install scikit-learn folium pandas
+
+# Import required libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+import folium
+from sklearn.metrics import mean_squared_error
+from IPython.display import IFrame
+from PIL import Image
+from IPython.display import display
+
+# Generate the dataset (as previously created)
+np.random.seed(42)
+data_size = 1000
+locations = [f"Location_{i}" for i in range(1, 101)]
+data = {
+    "Location": np.random.choice(locations, data_size),
+    "RoadCondition": np.random.choice(["Clear", "Moderate Traffic", "Heavy Traffic"], data_size),
+    "DistanceToFire (km)": np.round(np.random.uniform(0.5, 20, data_size), 2),
+    "EstimatedTravelTime (min)": np.round(np.random.uniform(5, 60, data_size), 2),
+    "WaterResourceAvailable (liters)": np.random.choice([1000, 2000, 5000, 10000], data_size),
+    "RefillStationDistance (km)": np.round(np.random.uniform(1, 10, data_size), 2),
+    "PriorityLevel": np.random.choice(["High", "Medium", "Low"], data_size),
+}
+df = pd.DataFrame(data)
+
+# One-hot encode categorical variables
+df_encoded = pd.get_dummies(df, columns=["Location", "RoadCondition", "PriorityLevel"], drop_first=True)
+
+# Features and target variables
+X = df_encoded.drop(["DistanceToFire (km)", "WaterResourceAvailable (liters)"], axis=1)
+y_distance = df_encoded["DistanceToFire (km)"]
+y_water = df_encoded["WaterResourceAvailable (liters)"]
+
+# Split the data into training and test sets
+X_train, X_test, y_train_dist, y_test_dist, y_train_water, y_test_water = train_test_split(
+    X, y_distance, y_water, test_size=0.2, random_state=42
+)
+
+# Train Random Forest Regressor for Distance
+model_distance = RandomForestRegressor(n_estimators=100, random_state=42)
+model_distance.fit(X_train, y_train_dist)
+
+# Train Random Forest Regressor for Water Availability
+model_water = RandomForestRegressor(n_estimators=100, random_state=42)
+model_water.fit(X_train, y_train_water)
+
+# Evaluate the models
+dist_preds = model_distance.predict(X_test)
+water_preds = model_water.predict(X_test)
+
+print(f"Distance RMSE: {np.sqrt(mean_squared_error(y_test_dist, dist_preds))}")
+print(f"Water Availability RMSE: {np.sqrt(mean_squared_error(y_test_water, water_preds))}")
+
+# User input for location only
+location_input = input("Enter the location (e.g., Location_1 to Location_100): ")
+
+# Simulate user input as a row in the dataset
+new_input = pd.DataFrame(np.zeros((1, len(X.columns))), columns=X.columns)
+
+# Set the correct location
+location_column = f"Location_{location_input.split('_')[1]}"
+if location_column in new_input.columns:
+    new_input[location_column] = 1
+
+# Predict shortest distance and water availability
+predicted_distance = model_distance.predict(new_input)
+predicted_water = model_water.predict(new_input)
+
+print(f"\nPredicted Distance to Fire: {predicted_distance[0]:.2f} km")
+print(f"Predicted Water Resource Available: {predicted_water[0]:.2f} liters")
+
+# Map visualization using Folium
+# Assuming random lat/lon coordinates for locations for demonstration
+location_coordinates = {
+    f"Location_{i}": [28.60 + np.random.uniform(-0.05, 0.05), 77.20 + np.random.uniform(-0.05, 0.05)] for i in range(1, 101)
+}
+
+# Get coordinates of the fire location (based on input)
+fire_coords = location_coordinates[location_input]
+
+# Initialize the map centered around the fire location
+map = folium.Map(location=fire_coords, zoom_start=13)
+
+# Add a marker for the fire location
+folium.Marker(location=fire_coords, popup="Fire Location", icon=folium.Icon(color="red")).add_to(map)
+
+# Add markers for nearby refill stations (simulate nearby refill stations)
+for i in range(3):  # 3 nearby stations
+    refill_station_coords = [
+        fire_coords[0] + np.random.uniform(-0.02, 0.02),
+        fire_coords[1] + np.random.uniform(-0.02, 0.02)
+    ]
+    folium.Marker(location=refill_station_coords, popup=f"Refill Station {i+1}", icon=folium.Icon(color="blue")).add_to(map)
+
+# Save and display the interactive map using IFrame
+map.save("fire_brigade_map.html")
+IFrame("fire_brigade_map.html", width=700, height=500)
+
+# (Optional) Display static screenshot of the map (upload the image after taking a screenshot)
+try:
+    image = Image.open('fire_brigade_map_screenshot.png')  # Replace with your screenshot file name
+    display(image)
+except FileNotFoundError:
+    print("No static screenshot found. Please upload the image if you want to display it.")
